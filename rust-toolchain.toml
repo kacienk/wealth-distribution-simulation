@@ -1,0 +1,6 @@
+[toolchain]
+channel = "stable"
+version = "1.85"
+components = [ "rustfmt" ]
+targets = []
+profile = "default"

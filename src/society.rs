@@ -21,6 +21,35 @@ impl Society {
         }
     }
 
+    pub fn simulate_movement(&mut self, max_distance: f64) {
+        for agent in &mut self.agents {
+            agent.move_randomly(max_distance);
+        }
+    }
+
+    pub fn simulate_collisions(&mut self, transaction_radius: f64) {
+        let len = self.agents.len();
+        for i in 0..len {
+            for j in (i + 1)..len {
+                let (a1, a2) = {
+                    let (left, right) = self.agents.split_at_mut(j);
+                    (&mut left[i], &mut right[0])
+                };
+                let dx = a1.x - a2.x;
+                let dy = a1.y - a2.y;
+                let distance = (dx * dx + dy * dy).sqrt();
+                if distance < transaction_radius {
+                    // Example: transfer 1 unit if a1 can afford
+                    let amount = 1.0;
+                    if a1.wealth >= amount {
+                        a1.wealth -= amount;
+                        a2.wealth += amount;
+                    }
+                }
+            }
+        }
+    }
+
     /// Simulate one round of random transactions
     pub fn simulate_transactions(&mut self, exchanges: usize) {
         let mut rng = thread_rng();

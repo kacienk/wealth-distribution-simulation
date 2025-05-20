@@ -4,9 +4,11 @@ use rand::Rng;
 pub struct Agent {
     pub id: usize,
     pub wealth: f64,
+    pub x: f64,
+    pub y: f64,
     pub income: f64,
     pub education: f64, // 0.0 to 1.0
-    pub health: f64,    // 0.0 to 1.0
+    pub age: u8,
     pub tax_paid: f64,
     pub benefits_received: f64,
 }
@@ -17,18 +19,28 @@ impl Agent {
         Self {
             id,
             wealth: rng.gen_range(50.0..200.0),
+            x: rng.gen_range(0.0..100.0),
+            y: rng.gen_range(0.0..100.0),
             income: rng.gen_range(10.0..30.0),
             education: rng.gen_range(0.0..0.5),
-            health: rng.gen_range(0.5..1.0),
+            age: 1,
             tax_paid: 0.0,
             benefits_received: 0.0,
         }
     }
 
-    /// Update income based on education and health
+    pub fn move_randomly(&mut self, max_distance: f64) {
+        let mut rng = rand::thread_rng();
+        let angle = rng.gen_range(0.0..std::f64::consts::TAU);
+        let distance = rng.gen_range(0.0..max_distance);
+        self.x += distance * angle.cos();
+        self.y += distance * angle.sin();
+    }
+
+    /// Update income based on education and age
     pub fn update_income(&mut self) {
         let base_income = 20.0;
-        self.income = base_income * (0.5 + 0.5 * self.education) * self.health;
+        self.income = base_income * (0.5 + 0.5 * self.education) * self.age as f64;
     }
 
     /// Apply tax to current income
@@ -53,21 +65,8 @@ impl Agent {
         }
     }
 
-    /// Update health level
-    pub fn update_health(&mut self, public_fund_factor: f64) {
-        let mut rng = rand::thread_rng();
-        let health_risk = rng.gen::<f64>();
-
-        if health_risk > self.health {
-            self.health -= 0.1;
-        }
-
-        self.health += 0.05 * public_fund_factor;
-        if self.health > 1.0 {
-            self.health = 1.0;
-        }
-        if self.health < 0.0 {
-            self.health = 0.0;
-        }
+    /// Update age
+    pub fn update_age(&mut self) {
+        self.age += 1;
     }
 }

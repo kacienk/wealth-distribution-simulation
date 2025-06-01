@@ -20,6 +20,14 @@ fn main() -> eframe::Result<()> {
     eframe::run_native(
         "Wealth Simulation",
         native_options,
-        Box::new(|_cc| Box::new(SimApp::new(env, Some("visualisation/metrics.csv"), true))),
+        Box::new(|_cc| {
+            let max_iter = 10000;
+            Box::new(SimApp::new(
+                env,
+                Some(max_iter),
+                Some("visualisation/metrics.csv"),
+                true,
+            ))
+        }),
     )
 }

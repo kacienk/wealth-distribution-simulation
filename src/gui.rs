@@ -4,15 +4,22 @@ use crate::{environment::Environment, metrics::Metrics};
 
 pub struct SimApp {
     pub env: Environment,
+    pub max_iter: Option<usize>,
     pub metrics: Metrics,
     pub logging_enabled: bool,
 }
 
 impl SimApp {
-    pub fn new(env: Environment, filepath: Option<&str>, logging_enabled: bool) -> Self {
+    pub fn new(
+        env: Environment,
+        max_iter: Option<usize>,
+        filepath: Option<&str>,
+        logging_enabled: bool,
+    ) -> Self {
         let metrics = Metrics::new(filepath.unwrap_or("visualisation/metrics.csv"));
         Self {
             env,
+            max_iter,
             metrics,
             logging_enabled,
         }
@@ -21,6 +28,10 @@ impl SimApp {
 
 impl eframe::App for SimApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        if self.max_iter.is_some() && self.env.iteration >= self.max_iter.unwrap() {
+            ctx.request_repaint();
+            return;
+        }
         self.env.step();
         if self.logging_enabled {
             self.metrics.log(self.env.iteration, &self.env.agents);

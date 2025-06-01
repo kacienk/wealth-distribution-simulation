@@ -1,17 +1,22 @@
 mod agent;
-mod society;
+mod environment;
+mod environment_config;
+mod metrics;
 
-use society::Society;
+use crate::environment::Environment;
+use crate::environment_config::EnvironmentConfig;
+use crate::metrics::Metrics;
 
 fn main() {
-    let mut society = Society::new(100, 0.1, true);
+    let config = EnvironmentConfig::new(1000, 1000, 50.0, 1.0, 5.0); // interaction radius, max movement, tax rate
+    let mut world = Environment::new(100, &config); // 100 agents
+    let mut metrics = Metrics::new();
 
-    for round in 1..=10 {
-        println!("Round {}", round);
-        society.simulate_movement(2.0); // e.g. max move per round
-        society.simulate_collisions(1.0); // e.g. proximity threshold
-        society.simulate_transactions(200);
-        society.apply_taxation();
-        society.print_summary();
+    for step in 0..1000 {
+        println!("Step {}", step);
+        world.step();
+        metrics.record(&world.agents);
     }
+
+    metrics.report();
 }

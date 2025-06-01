@@ -1,16 +1,15 @@
 use rand::Rng;
+use std::f64::consts::PI;
 
-#[derive(Debug)]
+#[derive(Clone)]
 pub struct Agent {
     pub id: usize,
-    pub wealth: f64,
     pub x: f64,
     pub y: f64,
-    pub income: f64,
-    pub education: f64, // 0.0 to 1.0
-    pub age: u8,
-    pub tax_paid: f64,
-    pub benefits_received: f64,
+    pub wealth: f64,
+    pub education: f64,
+    pub age: u32,
+    pub alive: bool,
 }
 
 impl Agent {
@@ -18,55 +17,41 @@ impl Agent {
         let mut rng = rand::thread_rng();
         Self {
             id,
-            wealth: rng.gen_range(50.0..200.0),
             x: rng.gen_range(0.0..100.0),
             y: rng.gen_range(0.0..100.0),
-            income: rng.gen_range(10.0..30.0),
-            education: rng.gen_range(0.0..0.5),
-            age: 1,
-            tax_paid: 0.0,
-            benefits_received: 0.0,
+            wealth: rng.gen_range(10.0..100.0),
+            education: rng.gen_range(0.0..10.0),
+            age: rng.gen_range(18..60),
+            alive: true,
         }
     }
 
-    pub fn move_randomly(&mut self, max_distance: f64) {
+    pub fn move_randomly(
+        &mut self,
+        max_distance: f64,
+        min_x: f64,
+        min_y: f64,
+        max_x: f64,
+        max_y: f64,
+    ) {
         let mut rng = rand::thread_rng();
-        let angle = rng.gen_range(0.0..std::f64::consts::TAU);
-        let distance = rng.gen_range(0.0..max_distance);
-        self.x += distance * angle.cos();
-        self.y += distance * angle.sin();
+        let theta = rng.gen_range(0.0..2.0 * PI);
+        let delta = rng.gen_range(0.0..max_distance);
+        // Ensure the agent stays within bounds
+        self.x = (self.x + delta * theta.cos()).clamp(min_x, max_x);
+        self.y = (self.y + delta * theta.sin()).clamp(min_y, max_y);
     }
 
-    /// Update income based on education and age
-    pub fn update_income(&mut self) {
-        let base_income = 20.0;
-        self.income = base_income * (0.5 + 0.5 * self.education) * self.age as f64;
+    pub fn income(&self, alpha: f64, beta: f64) -> f64 {
+        alpha * self.education + beta * self.age as f64
     }
 
-    /// Apply tax to current income
-    pub fn pay_tax(&mut self, tax_rate: f64) -> f64 {
-        let tax = self.income * tax_rate;
-        self.wealth -= tax;
-        self.tax_paid += tax;
-        tax
-    }
-
-    /// Receive benefits (e.g., healthcare or education support)
-    pub fn receive_benefit(&mut self, amount: f64) {
-        self.wealth += amount;
-        self.benefits_received += amount;
-    }
-
-    /// Update education level
-    pub fn improve_education(&mut self, effort: f64) {
-        self.education += effort;
-        if self.education > 1.0 {
-            self.education = 1.0;
-        }
-    }
-
-    /// Update age
-    pub fn update_age(&mut self) {
+    pub fn age_and_check_death(&mut self) -> bool {
         self.age += 1;
+        let death_chance = (self.age as f64 - 40.0).max(0.0) / 100.0;
+        if rand::random::<f64>() < death_chance {
+            self.alive = false;
+        }
+        !self.alive
     }
 }

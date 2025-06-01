@@ -13,12 +13,12 @@ pub struct Agent {
 }
 
 impl Agent {
-    pub fn new(id: usize) -> Self {
+    pub fn new(id: usize, min_x: f64, max_x: f64, min_y: f64, max_y: f64) -> Self {
         let mut rng = rand::thread_rng();
         Self {
             id,
-            x: rng.gen_range(0.0..100.0),
-            y: rng.gen_range(0.0..100.0),
+            x: rng.gen_range(min_x..max_x),
+            y: rng.gen_range(min_y..max_y),
             wealth: rng.gen_range(10.0..100.0),
             education: rng.gen_range(0.0..10.0),
             age: rng.gen_range(18..60),
@@ -48,10 +48,17 @@ impl Agent {
 
     pub fn age_and_check_death(&mut self) -> bool {
         self.age += 1;
-        let death_chance = (self.age as f64 - 40.0).max(0.0) / 100.0;
+        // Parameters for the sigmoid
+        let mid_age = 80.0 * 12.0; // age where death chance is 50%
+        let steepness = 0.15; // how quickly probability rises with age
+        let death_chance = 1.0 / (1.0 + (-steepness * (self.age as f64 - mid_age)).exp());
         if rand::random::<f64>() < death_chance {
             self.alive = false;
         }
         !self.alive
+    }
+
+    pub fn position(&self) -> (f64, f64) {
+        (self.x, self.y)
     }
 }

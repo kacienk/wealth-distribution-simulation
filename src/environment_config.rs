@@ -7,6 +7,7 @@ pub struct EnvironmentConfig {
     pub length: usize,
     pub width: usize,
     pub interaction_radius: f64,
+    pub interaction_probability: f64,
     pub max_movement: f64,
     pub tax_rate: f64,
 }
@@ -16,6 +17,7 @@ impl EnvironmentConfig {
         length: usize,
         width: usize,
         interaction_radius: f64,
+        interaction_probability: f64,
         max_movement: f64,
         tax_rate: f64,
     ) -> Self {
@@ -23,6 +25,7 @@ impl EnvironmentConfig {
             length,
             width,
             interaction_radius,
+            interaction_probability,
             max_movement,
             tax_rate,
         }

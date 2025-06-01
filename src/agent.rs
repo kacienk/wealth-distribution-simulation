@@ -3,6 +3,7 @@ use std::f64::consts::PI;
 
 #[derive(Clone)]
 pub struct Agent {
+    pub children: Vec<usize>,
     pub id: usize,
     pub x: f64,
     pub y: f64,
@@ -17,11 +18,12 @@ impl Agent {
         let mut rng = rand::thread_rng();
         Self {
             id,
+            children: Vec::new(),
             x: rng.gen_range(min_x..max_x),
             y: rng.gen_range(min_y..max_y),
             wealth: rng.gen_range(10.0..100.0),
-            education: rng.gen_range(0.0..10.0),
-            age: rng.gen_range(18..60),
+            education: rng.gen_range(5.0..10.0),
+            age: rng.gen_range(18 * 12..80 * 12),
             alive: true,
         }
     }
@@ -50,7 +52,7 @@ impl Agent {
         self.age += 1;
         // Parameters for the sigmoid
         let mid_age = 80.0 * 12.0; // age where death chance is 50%
-        let steepness = 0.15; // how quickly probability rises with age
+        let steepness = 0.1; // how quickly probability rises with age
         let death_chance = 1.0 / (1.0 + (-steepness * (self.age as f64 - mid_age)).exp());
         if rand::random::<f64>() < death_chance {
             self.alive = false;

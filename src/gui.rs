@@ -1,22 +1,30 @@
 use eframe::egui;
-use eframe::App;
-use egui::debug_text::print;
 
-use crate::environment::Environment;
+use crate::{environment::Environment, metrics::Metrics};
 
 pub struct SimApp {
     pub env: Environment,
+    pub metrics: Metrics,
+    pub logging_enabled: bool,
 }
 
 impl SimApp {
-    pub fn new(env: Environment) -> Self {
-        Self { env }
+    pub fn new(env: Environment, filepath: Option<&str>, logging_enabled: bool) -> Self {
+        let metrics = Metrics::new(filepath.unwrap_or("visualisation/metrics.csv"));
+        Self {
+            env,
+            metrics,
+            logging_enabled,
+        }
     }
 }
 
 impl eframe::App for SimApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        self.env.step(); // Advance simulation
+        self.env.step();
+        if self.logging_enabled {
+            self.metrics.log(self.env.iteration, &self.env.agents);
+        }
 
         egui::CentralPanel::default().show(ctx, |ui| {
             let available = ui.available_size();
@@ -36,6 +44,19 @@ impl eframe::App for SimApp {
             // Build transform: simulation → screen
             let to_screen = egui::emath::RectTransform::from_to(sim_rect, screen_rect);
 
+            let min_wealth = self
+                .env
+                .agents
+                .iter()
+                .map(|a| a.wealth)
+                .fold(f64::INFINITY, f64::min);
+            let max_wealth = self
+                .env
+                .agents
+                .iter()
+                .map(|a| a.wealth)
+                .fold(f64::NEG_INFINITY, f64::max);
+
             // Draw agents
             for agent in &self.env.agents {
                 if !agent.alive {
@@ -44,16 +65,28 @@ impl eframe::App for SimApp {
                 let sim_pos = egui::pos2(agent.x as f32, agent.y as f32);
                 let screen_pos = to_screen * sim_pos;
 
-                let wealth = agent.wealth.clamp(0.0, 255.0);
+                // Normalize wealth to a color value
+                // Assuming wealth is in the range [min_wealth, max_wealth]
+                if min_wealth == max_wealth {
+                    continue; // Avoid division by zero
+                }
+                let wealth = if min_wealth == max_wealth {
+                    128 // Neutral color if all agents have the same wealth
+                } else {
+                    ((agent.wealth - min_wealth) / (max_wealth - min_wealth) * 255.0)
+                        .clamp(0.0, 255.0) as u8
+                };
                 let color = egui::Color32::from_rgb(wealth as u8, 100, 255 - wealth as u8);
 
                 painter.circle_filled(screen_pos, 3.0, color);
             }
 
             println!(
-                "Iter: {}, Cummulative Wealth: {}",
+                "Iter: {}, Cummulative Wealth: {}, min Wealth: {}, max Wealth: {}",
                 self.env.iteration,
-                self.env.agents.iter().map(|a| a.wealth).sum::<f64>()
+                self.env.agents.iter().map(|a| a.wealth).sum::<f64>(),
+                min_wealth,
+                max_wealth
             );
         });
 

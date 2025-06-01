@@ -1,17 +1,33 @@
 mod agent;
-mod society;
+mod environment;
+mod environment_config;
+mod gui;
+mod metrics;
 
-use society::Society;
+use crate::environment::Environment;
+use crate::environment_config::EnvironmentConfig;
+use crate::gui::SimApp;
 
-fn main() {
-    let mut society = Society::new(100, 0.1, true);
+fn main() -> eframe::Result<()> {
+    let config = EnvironmentConfig::new(1000, 1000, 50.0, 0.3, 15.0, 5.0); // interaction radius, max movement, tax rate
+    let env = Environment::new(1000, &config); // 1000 agents
 
-    for round in 1..=10 {
-        println!("Round {}", round);
-        society.simulate_movement(2.0); // e.g. max move per round
-        society.simulate_collisions(1.0); // e.g. proximity threshold
-        society.simulate_transactions(200);
-        society.apply_taxation();
-        society.print_summary();
-    }
+    let native_options: eframe::NativeOptions = eframe::NativeOptions {
+        viewport: egui::ViewportBuilder::default().with_inner_size([800.0, 800.0]),
+        ..Default::default()
+    };
+
+    eframe::run_native(
+        "Wealth Simulation",
+        native_options,
+        Box::new(|_cc| {
+            let max_iter = 10000;
+            Box::new(SimApp::new(
+                env,
+                Some(max_iter),
+                Some("visualisation/metrics.csv"),
+                true,
+            ))
+        }),
+    )
 }

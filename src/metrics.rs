@@ -17,7 +17,7 @@ impl Metrics {
 
         writeln!(
             file,
-            "iteration,gini,min,p10,p25,p50,p75,p90,max,total_wealth"
+            "iteration,gini,min,p10,p25,p50,p75,p90,max,total_wealth,adult_agents,edu_mean,edu_min,edu_p10,edu_p25,edu_p50,edu_p75,edu_p90,edu_max"
         )
         .unwrap();
 
@@ -32,39 +32,65 @@ impl Metrics {
             .filter(|a| a.alive)
             .map(|a| a.wealth)
             .collect();
+        let mut educations: Vec<f64> = agents
+            .iter()
+            .filter(|a| a.alive)
+            .map(|a| a.education)
+            .collect();
+
         if wealths.is_empty() {
             return;
         }
 
         wealths.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        educations.sort_by(|a, b| a.partial_cmp(b).unwrap());
 
         let n = wealths.len();
         let gini = Self::gini(&wealths);
         let total_wealth: f64 = wealths.iter().sum();
 
-        let percentile = |p: f64| -> f64 {
-            let idx = (p * n as f64).floor() as usize;
-            wealths.get(idx.min(n - 1)).cloned().unwrap_or(0.0)
+        let percentile = |v: &Vec<f64>, p: f64| -> f64 {
+            let idx = (p * v.len() as f64).floor() as usize;
+            v.get(idx.min(v.len() - 1)).cloned().unwrap_or(0.0)
         };
 
         let min = *wealths.first().unwrap_or(&0.0);
         let max = *wealths.last().unwrap_or(&0.0);
-        let p10 = percentile(0.10);
-        let p25 = percentile(0.25);
-        let p50 = percentile(0.50);
-        let p75 = percentile(0.75);
-        let p90 = percentile(0.90);
+        let p10 = percentile(&wealths, 0.10);
+        let p25 = percentile(&wealths, 0.25);
+        let p50 = percentile(&wealths, 0.50);
+        let p75 = percentile(&wealths, 0.75);
+        let p90 = percentile(&wealths, 0.90);
+
+        let edu_min = *educations.first().unwrap_or(&0.0);
+        let edu_max = *educations.last().unwrap_or(&0.0);
+        let edu_mean = if !educations.is_empty() {
+            educations.iter().sum::<f64>() / educations.len() as f64
+        } else {
+            0.0
+        };
+        let edu_p10 = percentile(&educations, 0.10);
+        let edu_p25 = percentile(&educations, 0.25);
+        let edu_p50 = percentile(&educations, 0.50);
+        let edu_p75 = percentile(&educations, 0.75);
+        let edu_p90 = percentile(&educations, 0.90);
+
+        let adult_agents = agents
+            .iter()
+            .filter(|a| a.age >= 18 * 12 && a.alive)
+            .count();
 
         let mut file = OpenOptions::new()
             .append(true)
             .open(&self.file_path)
             .expect("Failed to open metrics file");
         writeln!(
-            file,
-            "{},{:.5},{:.2},{:.2},{:.2},{:.2},{:.2},{:.2},{:.2},{:.2}",
-            iteration, gini, min, p10, p25, p50, p75, p90, max, total_wealth
-        )
-        .unwrap();
+        file,
+        "{},{:.5},{:.2},{:.2},{:.2},{:.2},{:.2},{:.2},{:.2},{:.2},{},{:.2},{:.2},{:.2},{:.2},{:.2},{:.2},{:.2},{:.2}",
+        iteration, gini, min, p10, p25, p50, p75, p90, max, total_wealth, adult_agents,
+        edu_mean, edu_min, edu_p10, edu_p25, edu_p50, edu_p75, edu_p90, edu_max
+    )
+    .unwrap();
     }
 
     fn gini(wealths: &[f64]) -> f64 {

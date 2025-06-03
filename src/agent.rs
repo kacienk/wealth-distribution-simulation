@@ -1,4 +1,5 @@
 use rand::Rng;
+use rand_distr::Distribution;
 use std::f64::consts::PI;
 
 #[derive(Clone)]
@@ -11,20 +12,48 @@ pub struct Agent {
     pub education: f64,
     pub age: u32,
     pub alive: bool,
+    pub mid_age: f64,   // age where death chance is 50%
+    pub steepness: f64, // how quickly death probability rises with age
 }
 
 impl Agent {
-    pub fn new(id: usize, min_x: f64, max_x: f64, min_y: f64, max_y: f64) -> Self {
+    pub fn new(
+        id: usize,
+        min_x: f64,
+        max_x: f64,
+        min_y: f64,
+        max_y: f64,
+        mean_age: f64,
+        stddev_age: f64,
+        mid_age: f64,
+        steepness: f64,
+        max_start_age: f64,
+    ) -> Self {
         let mut rng = rand::thread_rng();
+        let age_years = rng.gen_range(0.0..max_start_age);
+
+        let age_months = (age_years * 12.0).floor() as u32;
+
+        let education = if age_years < 6.0 {
+            0.0
+        } else if age_years < 18.0 {
+            let base = ((age_years - 6.0) / 12.0) * 4.0;
+            base + rng.gen_range(0.0..2.0)
+        } else {
+            4.0 + rng.gen_range(0.0..1.0) * 6.0
+        };
+
         Self {
             id,
             children: Vec::new(),
             x: rng.gen_range(min_x..max_x),
             y: rng.gen_range(min_y..max_y),
             wealth: rng.gen_range(10.0..100.0),
-            education: rng.gen_range(5.0..10.0),
-            age: rng.gen_range(18 * 12..80 * 12),
+            education: education,
+            age: age_months,
             alive: true,
+            mid_age,
+            steepness,
         }
     }
 
@@ -50,9 +79,8 @@ impl Agent {
 
     pub fn age_and_check_death(&mut self) -> bool {
         self.age += 1;
-        // Parameters for the sigmoid
-        let mid_age = 80.0 * 12.0; // age where death chance is 50%
-        let steepness = 0.1; // how quickly probability rises with age
+        let mid_age = self.mid_age * 12.0; // age where death chance is 50%
+        let steepness = self.steepness; // how quickly probability rises with age
         let death_chance = 1.0 / (1.0 + (-steepness * (self.age as f64 - mid_age)).exp());
         if rand::random::<f64>() < death_chance {
             self.alive = false;

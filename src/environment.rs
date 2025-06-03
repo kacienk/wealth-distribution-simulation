@@ -1,7 +1,8 @@
-use crate::agent::Agent;
+use crate::agent::{self, Agent};
 use crate::environment_config::EnvironmentConfig;
+use rand::seq::SliceRandom;
 use rand::Rng;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 pub struct Environment {
     pub agents: Vec<Agent>,
@@ -10,18 +11,74 @@ pub struct Environment {
     pub max_x: usize,
     pub min_y: usize,
     pub max_y: usize,
-    pub interaction_radius: f64,
-    pub interaction_probability: f64,
-    pub max_movement: f64,
-    pub tax_rate: f64,
     pub next_agent_id: usize,
+    pub config: EnvironmentConfig,
 }
 
 impl Environment {
-    pub fn new(size: usize, config: &EnvironmentConfig) -> Self {
-        let agents: Vec<Agent> = (0..size)
-            .map(|id| Agent::new(id, 0.0, config.length as f64, 0.0, config.width as f64))
+    pub fn new(config: &EnvironmentConfig) -> Self {
+        let mut agents: Vec<Agent> = (0..config.num_agents)
+            .map(|id| {
+                Agent::new(
+                    id,
+                    0.0,
+                    config.length as f64,
+                    0.0,
+                    config.width as f64,
+                    config.mean_age,
+                    config.stddev_age,
+                    config.mid_age,
+                    config.steepness,
+                    config.max_start_age,
+                )
+            })
             .collect();
+
+        let mut rng = rand::thread_rng();
+        let mut by_age: Vec<usize> = (0..agents.len()).collect();
+        by_age.sort_by(|&a, &b| agents[a].age.cmp(&agents[b].age));
+
+        for i in 0..agents.len() {
+            let age = agents[i].age;
+
+            let age_years = age as f64 / 12.0;
+            let prob_two_parents =
+                (1.0 - (age_years / (config.max_start_age - 30.0))).clamp(0.0, 1.0); // 1.0 at age 0, 0.0 at age 60
+            let prob_one_parent = (1.0 - prob_two_parents)
+                * (1.0 - 0.5 * (age_years / (config.max_start_age - 18.0)))
+                    .clamp(0.0, 1.0)
+                    .min(1.0 - prob_two_parents);
+            let roll: f64 = rng.gen();
+            let num_parents = if roll < prob_two_parents {
+                2
+            } else if roll < prob_two_parents + prob_one_parent {
+                1
+            } else {
+                0
+            };
+
+            let possible_parents: Vec<usize> = by_age
+                .iter()
+                .filter(|&&idx| {
+                    agents[idx].age + 18 * 12 <= age && agents[idx].age + 45 * 12 > age && idx != i
+                })
+                .cloned()
+                .collect();
+            if possible_parents.len() >= num_parents {
+                let selected = possible_parents
+                    .choose_multiple(&mut rng, num_parents)
+                    .cloned()
+                    .collect::<Vec<_>>();
+                for parent_idx in &selected {
+                    agents[*parent_idx].children.push(i);
+                }
+            } else {
+                possible_parents
+                    .iter()
+                    .for_each(|&parent_idx| agents[parent_idx].children.push(i));
+            }
+        }
+
         Self {
             agents,
             iteration: 0,
@@ -29,31 +86,30 @@ impl Environment {
             max_x: config.length,
             min_y: 0,
             max_y: config.width,
-            interaction_radius: config.interaction_radius,
-            interaction_probability: config.interaction_probability,
-            max_movement: config.max_movement,
-            tax_rate: config.tax_rate,
-            next_agent_id: size,
+            next_agent_id: config.num_agents,
+            config: config.clone(),
         }
     }
 
     pub fn config(&self) -> EnvironmentConfig {
-        EnvironmentConfig {
-            length: self.max_x - self.min_x,
-            width: self.max_y - self.min_y,
-            interaction_radius: self.interaction_radius,
-            interaction_probability: self.interaction_probability,
-            max_movement: self.max_movement,
-            tax_rate: self.tax_rate,
-        }
+        self.config
     }
 
     pub fn step(&mut self) {
         let baseline_consumption = 0.8;
 
+        let mut agents_with_parents: HashMap<usize, u32> = HashMap::new();
+        for agent in self.agents.iter() {
+            if !agent.children.is_empty() {
+                for child_id in &agent.children {
+                    *agents_with_parents.entry(*child_id).or_insert(0) += 1;
+                }
+            }
+        }
+
         for agent in self.agents.iter_mut().filter(|a| a.alive) {
             agent.move_randomly(
-                self.max_movement,
+                self.config.max_movement,
                 self.min_x as f64,
                 self.min_y as f64,
                 self.max_x as f64,
@@ -93,7 +149,7 @@ impl Environment {
             .enumerate()
             .filter(|(_, a)| a.alive)
             .filter(|(_, a)| a.age >= 18 * 12)
-            .filter(|(_, _)| rand::random::<f64>() < self.interaction_probability)
+            .filter(|(_, _)| rand::random::<f64>() < self.config.interaction_probability)
             .map(|(i, _)| i)
             .collect();
 
@@ -111,8 +167,8 @@ impl Environment {
                     by = b.y;
                 }
                 let dist = ((ax - bx).powi(2) + (ay - by).powi(2)).sqrt();
-                if dist < self.interaction_radius {
-                    let tax = self.tax_rate / 100.0;
+                if dist < self.config.interaction_radius {
+                    let tax = self.config.tax_rate / 100.0;
                     let (winner, loser) = self.decide_transaction_by_id(a_id, b_id);
                     let amount = 0.05 * loser.wealth.min(winner.wealth);
                     let taxed = amount * tax;
@@ -254,6 +310,8 @@ impl Environment {
             education: 0.0,
             age: 0,
             alive: true,
+            mid_age: p1.mid_age,
+            steepness: p1.steepness,
         }
     }
 

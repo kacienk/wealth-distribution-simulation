@@ -1,6 +1,7 @@
 use rand::Rng;
-use rand_distr::Distribution;
 use std::f64::consts::PI;
+
+use crate::environment_config::{AgeAndDeath, Education, Wealth};
 
 #[derive(Clone)]
 pub struct Agent {
@@ -23,24 +24,24 @@ impl Agent {
         max_x: f64,
         min_y: f64,
         max_y: f64,
-        mean_age: f64,
-        stddev_age: f64,
-        mid_age: f64,
-        steepness: f64,
-        max_start_age: f64,
+        age_and_death: &AgeAndDeath,
+        education: &Education,
+        wealth: &Wealth,
     ) -> Self {
         let mut rng = rand::thread_rng();
-        let age_years = rng.gen_range(0.0..max_start_age);
+        let age_years = rng.gen_range(0.0..age_and_death.max_start_age);
 
         let age_months = (age_years * 12.0).floor() as u32;
 
         let education = if age_years < 6.0 {
             0.0
         } else if age_years < 18.0 {
-            let base = ((age_years - 6.0) / 12.0) * 4.0;
-            base + rng.gen_range(0.0..2.0)
+            let base = ((age_years - 6.0) / 12.0) * education.elemental_education_threshold;
+            base + rng.gen_range(0.0..education.children_education_jitter)
         } else {
-            4.0 + rng.gen_range(0.0..1.0) * 6.0
+            education.initial_adult_min
+                + rng.gen_range(0.0..1.0)
+                    * (education.initial_adult_max - education.initial_adult_min)
         };
 
         Self {
@@ -48,12 +49,12 @@ impl Agent {
             children: Vec::new(),
             x: rng.gen_range(min_x..max_x),
             y: rng.gen_range(min_y..max_y),
-            wealth: rng.gen_range(10.0..100.0),
+            wealth: rng.gen_range(wealth.min_initial_wealth..wealth.max_initial_wealth),
             education: education,
             age: age_months,
             alive: true,
-            mid_age,
-            steepness,
+            mid_age: age_and_death.mid_age,
+            steepness: age_and_death.steepness,
         }
     }
 
@@ -88,7 +89,7 @@ impl Agent {
         !self.alive
     }
 
-    pub fn position(&self) -> (f64, f64) {
-        (self.x, self.y)
+    pub fn is_adult(&self) -> bool {
+        self.age >= 18 * 12
     }
 }

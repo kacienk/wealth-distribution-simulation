@@ -1,8 +1,8 @@
-use crate::agent::{self, Agent};
-use crate::environment_config::EnvironmentConfig;
+use crate::agent::Agent;
+use crate::environment_config::{EnvironmentConfig, Wealth};
 use rand::seq::SliceRandom;
 use rand::Rng;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 pub struct Environment {
     pub agents: Vec<Agent>,
@@ -25,11 +25,9 @@ impl Environment {
                     config.length as f64,
                     0.0,
                     config.width as f64,
-                    config.mean_age,
-                    config.stddev_age,
-                    config.mid_age,
-                    config.steepness,
-                    config.max_start_age,
+                    &config.age_and_death,
+                    &config.education,
+                    &config.wealth,
                 )
             })
             .collect();
@@ -43,9 +41,9 @@ impl Environment {
 
             let age_years = age as f64 / 12.0;
             let prob_two_parents =
-                (1.0 - (age_years / (config.max_start_age - 30.0))).clamp(0.0, 1.0); // 1.0 at age 0, 0.0 at age 60
+                (1.0 - (age_years / (config.age_and_death.max_start_age - 30.0))).clamp(0.0, 1.0); // 1.0 at age 0, 0.0 at age 60
             let prob_one_parent = (1.0 - prob_two_parents)
-                * (1.0 - 0.5 * (age_years / (config.max_start_age - 18.0)))
+                * (1.0 - 0.5 * (age_years / (config.age_and_death.max_start_age - 18.0)))
                     .clamp(0.0, 1.0)
                     .min(1.0 - prob_two_parents);
             let roll: f64 = rng.gen();
@@ -96,8 +94,6 @@ impl Environment {
     }
 
     pub fn step(&mut self) {
-        let baseline_consumption = 0.8;
-
         let mut agents_with_parents: HashMap<usize, u32> = HashMap::new();
         for agent in self.agents.iter() {
             if !agent.children.is_empty() {
@@ -116,22 +112,11 @@ impl Environment {
                 self.max_y as f64,
             );
 
-            let learning_rate_min = 0.005;
-            let learning_rate_max = 0.05;
-            let learning_rate = rand::thread_rng().gen_range(learning_rate_min..learning_rate_max);
-            let max_education = 10.0;
-            if agent.education < max_education {
-                agent.education += learning_rate * (1.0 - agent.education / max_education);
-            }
-
-            if agent.age < 18 * 12 {
+            Environment::handle_learning(&self.config, agent);
+            if !agent.is_adult() {
                 continue;
             }
-
-            let consumption = baseline_consumption * agent.wealth;
-            let income = agent.income(2.0, 0.05);
-            agent.wealth += income;
-            agent.wealth -= consumption;
+            Environment::handle_income_and_consumption(&self.config, agent);
         }
 
         self.handle_interactions();
@@ -148,10 +133,15 @@ impl Environment {
             .iter()
             .enumerate()
             .filter(|(_, a)| a.alive)
-            .filter(|(_, a)| a.age >= 18 * 12)
-            .filter(|(_, _)| rand::random::<f64>() < self.config.interaction_probability)
+            .filter(|(_, a)| a.is_adult())
+            .filter(|(_, _)| {
+                rand::random::<f64>() < self.config.transaction.transaction_probability
+            })
             .map(|(i, _)| i)
             .collect();
+
+        let tax_rate = self.config.transaction.tax_rate;
+        let amount_rate = self.config.transaction.amount_rate;
 
         for i in 0..interaction_eligable_ids.len() {
             for j in (i + 1)..interaction_eligable_ids.len() {
@@ -167,25 +157,48 @@ impl Environment {
                     by = b.y;
                 }
                 let dist = ((ax - bx).powi(2) + (ay - by).powi(2)).sqrt();
+
                 if dist < self.config.interaction_radius {
-                    let tax = self.config.tax_rate / 100.0;
                     let (winner, loser) = self.decide_transaction_by_id(a_id, b_id);
-                    let amount = 0.05 * loser.wealth.min(winner.wealth);
-                    let taxed = amount * tax;
-                    winner.wealth += amount - taxed;
+                    let amount = amount_rate * loser.wealth.min(winner.wealth);
+                    winner.wealth += (1.0 - tax_rate) * amount;
                     loser.wealth -= amount;
                 }
             }
         }
     }
 
+    fn handle_learning(config: &EnvironmentConfig, agent: &mut Agent) {
+        let learning_rate = rand::thread_rng()
+            .gen_range(config.education.learning_rate_min..config.education.learning_rate_max);
+        let max_education = config.education.max;
+        if agent.education < max_education {
+            agent.education += learning_rate * (1.0 - agent.education / max_education);
+        }
+    }
+
+    fn handle_income_and_consumption(config: &EnvironmentConfig, agent: &mut Agent) {
+        let baseline_consumption = config.income_and_consumption.base_consumption;
+        let additional_consumption = config.income_and_consumption.aditional_consumption_rate;
+        let income_age_parameter = config.income_and_consumption.income_age_parameter;
+        let income_education_parameter = config.income_and_consumption.income_education_parameter;
+
+        let consumption = baseline_consumption
+            + additional_consumption * (agent.wealth - baseline_consumption).max(0.0);
+        let income = agent.income(income_education_parameter, income_age_parameter);
+        agent.wealth += income;
+        agent.wealth -= consumption;
+    }
+
     fn decide_transaction_by_id(&mut self, a_id: usize, b_id: usize) -> (&mut Agent, &mut Agent) {
+        let age_parameter = self.config.transaction.age_parameter;
+        let education_parameter = self.config.transaction.education_parameter;
         let (score_a, score_b);
         {
             let a = &self.agents[a_id];
             let b = &self.agents[b_id];
-            score_a = a.education + 0.005 * a.age as f64;
-            score_b = b.education + 0.005 * b.age as f64;
+            score_a = education_parameter * a.education + age_parameter * a.age as f64;
+            score_b = education_parameter * b.education + age_parameter * b.age as f64;
         }
         if rand::random::<f64>() < score_a / (score_a + score_b) {
             self.get_pair_mut(a_id, b_id)
@@ -208,6 +221,9 @@ impl Environment {
         let mut new_agents = Vec::new();
         let mut inheritance: HashMap<usize, f64> = HashMap::new();
 
+        let min_inheritance_at_birth_rate = self.config.wealth.min_inheritance_at_birth_rate;
+        let max_inheritance_at_birth_rate = self.config.wealth.max_inheritance_at_birth_rate;
+
         for i in 0..size {
             if self.agents[i].alive && self.agents[i].age_and_check_death() {
                 self.resolve_inheritance(&mut inheritance, i);
@@ -217,7 +233,17 @@ impl Environment {
                 self.next_agent_id += 1;
                 let (min_x, max_x, min_y, max_y) = self.bounds();
                 let (p1, p2) = self.select_parents();
-                let child = Environment::create_offspring(p1, p2, id, min_x, max_x, min_y, max_y);
+                let child = Environment::create_offspring(
+                    p1,
+                    p2,
+                    id,
+                    min_x,
+                    max_x,
+                    min_y,
+                    max_y,
+                    min_inheritance_at_birth_rate,
+                    max_inheritance_at_birth_rate,
+                );
                 new_agents.push(child);
             }
         }
@@ -291,10 +317,14 @@ impl Environment {
         max_x: usize,
         min_y: usize,
         max_y: usize,
+        min_inheritance_at_birth_rate: f64,
+        max_inheritance_at_birth_rate: f64,
     ) -> Agent {
         let mut rng = rand::thread_rng();
-        let parent1_inheritance = p1.wealth * rng.gen_range(0.1..0.3);
-        let parent2_inheritance = p2.wealth * rng.gen_range(0.1..0.3);
+        let parent1_inheritance =
+            p1.wealth * rng.gen_range(min_inheritance_at_birth_rate..max_inheritance_at_birth_rate);
+        let parent2_inheritance =
+            p2.wealth * rng.gen_range(min_inheritance_at_birth_rate..max_inheritance_at_birth_rate);
         let wealth = parent1_inheritance + parent2_inheritance;
         p1.wealth -= parent1_inheritance;
         p2.wealth -= parent2_inheritance;

@@ -4,14 +4,47 @@ mod environment_config;
 mod gui;
 mod metrics;
 
+use std::env;
+
 use crate::environment::Environment;
-use crate::environment_config::EnvironmentConfig;
+use crate::environment_config::{
+    AgeAndDeath, Education, EnvironmentConfig, IncomeAndConsumption, Transaction,
+};
 use crate::gui::SimApp;
 
-fn main() -> eframe::Result<()> {
+fn create_default_config() {
+    let age_and_death = AgeAndDeath::new(30.0, 10.0, 80.0, 90.0, 0.02);
+    let education = Education::new(4.0, 10.0, 4.0, 2.0, 0.005, 0.05, 10.0);
+    let income_and_consumption = IncomeAndConsumption::new(0.05, 2.0, 10.0, 0.2);
+    let transaction = Transaction::new(0.3, 1.0, 0.001, 0.05, 0.05);
+    let wealth = environment_config::Wealth::new(10.0, 100.0, 0.1, 0.3);
     let config = EnvironmentConfig::new(
-        1000, 1000, 1000, 50.0, 0.3, 15.0, 0.0, 30.0, 10.0, 80.0, 90.0, 0.02,
+        1000,
+        1000,
+        1000,
+        50.0,
+        15.0,
+        age_and_death,
+        education,
+        income_and_consumption,
+        transaction,
+        wealth,
     );
+    config.save_to_file("config/default.json");
+}
+
+fn main() -> eframe::Result<()> {
+    let args: Vec<String> = env::args().collect();
+
+    create_default_config();
+
+    let config = if args.len() > 1 {
+        println!("Loading config from: {}", args[1]);
+        EnvironmentConfig::load_from_file(&args[1])
+    } else {
+        println!("No config file provided, using default.");
+        EnvironmentConfig::load_from_file("config/default.json")
+    };
     let env = Environment::new(&config);
 
     let native_options: eframe::NativeOptions = eframe::NativeOptions {

@@ -47,6 +47,10 @@ fn main() -> eframe::Result<()> {
         println!("No config file provided, using default.");
         "config/default.json"
     };
+    let config_filename = Path::new(config_path)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("default");
 
     let config = EnvironmentConfig::load_from_file(config_path);
     let env = Environment::new(&config);
@@ -56,9 +60,11 @@ fn main() -> eframe::Result<()> {
         ..Default::default()
     };
 
+    let metrics_filepath = format!("visualisation/metrics_{}.csv", config_filename);
+
     eframe::run_native(
         "Wealth Simulation",
         native_options,
-        Box::new(|_cc| Box::new(SimApp::new(env, Some("visualisation/metrics.csv"), true))),
+        Box::new(move |_cc| Box::new(SimApp::new(env, Some(&metrics_filepath), true))),
     )
 }

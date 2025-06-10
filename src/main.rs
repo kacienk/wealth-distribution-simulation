@@ -19,6 +19,7 @@ fn create_default_config() {
     let transaction = Transaction::new(0.3, 1.0, 0.001, 0.05, 0.05);
     let wealth = environment_config::Wealth::new(10.0, 100.0, 0.1, 0.3);
     let config = EnvironmentConfig::new(
+        5000,
         1000,
         1000,
         1000,
@@ -55,14 +56,6 @@ fn main() -> eframe::Result<()> {
     eframe::run_native(
         "Wealth Simulation",
         native_options,
-        Box::new(|_cc| {
-            let max_iter = 5000;
-            Box::new(SimApp::new(
-                env,
-                Some(max_iter),
-                Some("visualisation/metrics.csv"),
-                true,
-            ))
-        }),
+        Box::new(|_cc| Box::new(SimApp::new(env, Some("visualisation/metrics.csv"), true))),
     )
 }

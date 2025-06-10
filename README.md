@@ -58,6 +58,7 @@ Example:
 
 ```json
 {
+  "num_iterations": 5000,
   "num_agents": 1000,
   "length": 1000,
   "width": 1000,

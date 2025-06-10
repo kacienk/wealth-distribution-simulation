@@ -49,6 +49,7 @@ pub struct Wealth {
 
 #[derive(Serialize, Deserialize, Clone, Copy)]
 pub struct EnvironmentConfig {
+    pub num_iterations: usize,
     pub num_agents: usize,
     pub length: usize,
     pub width: usize,
@@ -153,6 +154,7 @@ impl Wealth {
 
 impl EnvironmentConfig {
     pub fn new(
+        num_iterations: usize,
         num_agents: usize,
         length: usize,
         width: usize,
@@ -165,6 +167,7 @@ impl EnvironmentConfig {
         wealth: Wealth,
     ) -> Self {
         Self {
+            num_iterations,
             num_agents,
             length,
             width,

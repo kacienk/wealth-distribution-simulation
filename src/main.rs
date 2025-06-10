@@ -5,6 +5,7 @@ mod gui;
 mod metrics;
 
 use std::env;
+use std::path::Path;
 
 use crate::environment::Environment;
 use crate::environment_config::{
@@ -39,13 +40,15 @@ fn main() -> eframe::Result<()> {
 
     create_default_config();
 
-    let config = if args.len() > 1 {
+    let config_path = if args.len() > 1 {
         println!("Loading config from: {}", args[1]);
-        EnvironmentConfig::load_from_file(&args[1])
+        args[1].as_str()
     } else {
         println!("No config file provided, using default.");
-        EnvironmentConfig::load_from_file("config/default.json")
+        "config/default.json"
     };
+
+    let config = EnvironmentConfig::load_from_file(config_path);
     let env = Environment::new(&config);
 
     let native_options: eframe::NativeOptions = eframe::NativeOptions {

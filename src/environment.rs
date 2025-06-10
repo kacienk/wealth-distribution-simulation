@@ -13,6 +13,8 @@ pub struct Environment {
     pub max_y: usize,
     pub next_agent_id: usize,
     pub config: EnvironmentConfig,
+    pub iteration_total_transaction_amount: f64,
+    pub iteration_total_transaction_count: u32,
 }
 
 impl Environment {
@@ -86,6 +88,8 @@ impl Environment {
             max_y: config.width,
             next_agent_id: config.num_agents,
             config: config.clone(),
+            iteration_total_transaction_amount: 0.0,
+            iteration_total_transaction_count: 0,
         }
     }
 
@@ -94,6 +98,10 @@ impl Environment {
     }
 
     pub fn step(&mut self) {
+        // Reset iteration totals
+        self.iteration_total_transaction_amount = 0.0;
+        self.iteration_total_transaction_count = 0;
+
         let mut agents_with_parents: HashMap<usize, u32> = HashMap::new();
         for agent in self.agents.iter() {
             if !agent.children.is_empty() {
@@ -163,6 +171,9 @@ impl Environment {
                     let amount = amount_rate * loser.wealth.min(winner.wealth);
                     winner.wealth += (1.0 - tax_rate) * amount;
                     loser.wealth -= amount;
+
+                    self.iteration_total_transaction_amount += amount;
+                    self.iteration_total_transaction_count += 1;
                 }
             }
         }

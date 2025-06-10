@@ -34,7 +34,12 @@ impl eframe::App for SimApp {
         }
         self.env.step();
         if self.logging_enabled {
-            self.metrics.log(self.env.iteration, &self.env.agents);
+            self.metrics.log(
+                self.env.iteration,
+                &self.env.agents,
+                self.env.iteration_total_transaction_amount,
+                self.env.iteration_total_transaction_count,
+            );
         }
 
         egui::CentralPanel::default().show(ctx, |ui| {

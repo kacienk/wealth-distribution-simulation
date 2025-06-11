@@ -17,7 +17,7 @@ impl Metrics {
 
         writeln!(
             file,
-            "iteration,gini,min,p10,p25,p50,p75,p90,max,total_wealth,adult_agents,edu_mean,edu_min,edu_p10,edu_p25,edu_p50,edu_p75,edu_p90,edu_max"
+            "iteration,total_transactions_amount,transactions_count,gini,min,p10,p25,p50,p75,p90,max,total_wealth,adult_agents,edu_mean,edu_min,edu_p10,edu_p25,edu_p50,edu_p75,edu_p90,edu_max"
         )
         .unwrap();
 
@@ -26,7 +26,13 @@ impl Metrics {
         }
     }
 
-    pub fn log(&self, iteration: usize, agents: &[Agent]) {
+    pub fn log(
+        &self,
+        iteration: usize,
+        agents: &[Agent],
+        iteration_total_transaction_amount: f64,
+        iteration_total_transaction_count: u32,
+    ) {
         let mut wealths: Vec<f64> = agents
             .iter()
             .filter(|a| a.alive)
@@ -86,8 +92,9 @@ impl Metrics {
             .expect("Failed to open metrics file");
         writeln!(
         file,
-        "{},{:.5},{:.2},{:.2},{:.2},{:.2},{:.2},{:.2},{:.2},{:.2},{},{:.2},{:.2},{:.2},{:.2},{:.2},{:.2},{:.2},{:.2}",
-        iteration, gini, min, p10, p25, p50, p75, p90, max, total_wealth, adult_agents,
+        "{},{:.2},{},{:.5},{:.2},{:.2},{:.2},{:.2},{:.2},{:.2},{:.2},{:.2},{},{:.2},{:.2},{:.2},{:.2},{:.2},{:.2},{:.2},{:.2}",
+        iteration, iteration_total_transaction_amount, iteration_total_transaction_count,
+        gini, min, p10, p25, p50, p75, p90, max, total_wealth, adult_agents,
         edu_mean, edu_min, edu_p10, edu_p25, edu_p50, edu_p75, edu_p90, edu_max
     )
     .unwrap();

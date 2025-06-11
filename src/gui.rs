@@ -12,14 +12,14 @@ pub struct SimApp {
 impl SimApp {
     pub fn new(
         env: Environment,
-        max_iter: Option<usize>,
         filepath: Option<&str>,
         logging_enabled: bool,
     ) -> Self {
         let metrics = Metrics::new(filepath.unwrap_or("visualisation/metrics.csv"));
+        let num_iterations = env.config.num_iterations;
         Self {
             env,
-            max_iter,
+            max_iter: Some(num_iterations),
             metrics,
             logging_enabled,
         }
@@ -34,7 +34,12 @@ impl eframe::App for SimApp {
         }
         self.env.step();
         if self.logging_enabled {
-            self.metrics.log(self.env.iteration, &self.env.agents);
+            self.metrics.log(
+                self.env.iteration,
+                &self.env.agents,
+                self.env.iteration_total_transaction_amount,
+                self.env.iteration_total_transaction_count,
+            );
         }
 
         egui::CentralPanel::default().show(ctx, |ui| {

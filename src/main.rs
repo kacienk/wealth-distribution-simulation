@@ -5,6 +5,7 @@ mod gui;
 mod metrics;
 
 use std::env;
+use std::path::Path;
 
 use crate::environment::Environment;
 use crate::environment_config::{
@@ -19,6 +20,7 @@ fn create_default_config() {
     let transaction = Transaction::new(0.3, 1.0, 0.001, 0.05, 0.05);
     let wealth = environment_config::Wealth::new(10.0, 100.0, 0.1, 0.3);
     let config = EnvironmentConfig::new(
+        5000,
         1000,
         1000,
         1000,
@@ -38,13 +40,19 @@ fn main() -> eframe::Result<()> {
 
     create_default_config();
 
-    let config = if args.len() > 1 {
+    let config_path = if args.len() > 1 {
         println!("Loading config from: {}", args[1]);
-        EnvironmentConfig::load_from_file(&args[1])
+        args[1].as_str()
     } else {
         println!("No config file provided, using default.");
-        EnvironmentConfig::load_from_file("config/default.json")
+        "config/default.json"
     };
+    let config_filename = Path::new(config_path)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("default");
+
+    let config = EnvironmentConfig::load_from_file(config_path);
     let env = Environment::new(&config);
 
     let native_options: eframe::NativeOptions = eframe::NativeOptions {
@@ -52,17 +60,11 @@ fn main() -> eframe::Result<()> {
         ..Default::default()
     };
 
+    let metrics_filepath = format!("visualisation/metrics_{}.csv", config_filename);
+
     eframe::run_native(
         "Wealth Simulation",
         native_options,
-        Box::new(|_cc| {
-            let max_iter = 5000;
-            Box::new(SimApp::new(
-                env,
-                Some(max_iter),
-                Some("visualisation/metrics.csv"),
-                true,
-            ))
-        }),
+        Box::new(move |_cc| Box::new(SimApp::new(env, Some(&metrics_filepath), true))),
     )
 }

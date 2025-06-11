@@ -53,7 +53,7 @@ fn main() -> eframe::Result<()> {
         .unwrap_or("default");
 
     let config = EnvironmentConfig::load_from_file(config_path);
-    let env = Environment::new(&config);
+    let mut env = Environment::new(&config);
 
     let native_options: eframe::NativeOptions = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default().with_inner_size([800.0, 800.0]),
@@ -61,6 +61,13 @@ fn main() -> eframe::Result<()> {
     };
 
     let metrics_filepath = format!("visualisation/metrics_{}.csv", config_filename);
+
+    let should_visualise = env::var("VISUALISE").unwrap_or_else(|_| "true".to_string());
+    if should_visualise.to_lowercase() == "false" {
+        println!("Visualisation disabled. Running simulation without GUI.");
+        env.run_simulation(Some(&metrics_filepath), true);
+        return Ok(());
+    }
 
     eframe::run_native(
         "Wealth Simulation",

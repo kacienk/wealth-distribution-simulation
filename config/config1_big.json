@@ -1,0 +1,43 @@
+{
+  "num_iterations": 30000,
+  "num_agents": 5000,
+  "length": 2000,
+  "width": 2000,
+  "interaction_radius": 75.0,
+  "max_movement": 20.0,
+  "age_and_death": {
+    "mean_age": 35.0,
+    "stddev_age": 15.0,
+    "mid_age": 80.0,
+    "max_start_age": 70.0,
+    "steepness": 0.02
+  },
+  "education": {
+    "initial_adult_min": 4.0,
+    "initial_adult_max": 10.0,
+    "elemental_education_threshold": 4.0,
+    "children_education_jitter": 2.0,
+    "learning_rate_min": 0.005,
+    "learning_rate_max": 0.05,
+    "max": 10.0
+  },
+  "income_and_consumption": {
+    "income_age_parameter": 0.05,
+    "income_education_parameter": 2.0,
+    "base_consumption": 10.0,
+    "aditional_consumption_rate": 0.2
+  },
+  "transaction": {
+    "transaction_probability": 0.3,
+    "education_parameter": 1.0,
+    "age_parameter": 0.001,
+    "tax_rate": 0.05,
+    "amount_rate": 0.05
+  },
+  "wealth": {
+    "min_initial_wealth": 10.0,
+    "max_initial_wealth": 100.0,
+    "min_inheritance_at_birth_rate": 0.1,
+    "max_inheritance_at_birth_rate": 0.3
+  }
+}

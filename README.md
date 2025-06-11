@@ -39,6 +39,12 @@ This project simulates the evolution of wealth and education in a population of 
     cargo run --release -- path/to/your/config.json
     ```
 
+    If you want to run a simulation without a visualisation window, provide an environment variable `VISUALISE = false`:
+
+    ```sh
+    VISUALISE=false cargo run --release -- path/to/your/config.json
+    ```
+
 3. **View results:**cargo run --release
     - Simulation metrics are saved to `visualisation/metrics.csv`.
     - Open `visualisation/visualisation.ipynb` in Jupyter to plot and analyze results.

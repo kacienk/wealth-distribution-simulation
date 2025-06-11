@@ -1,5 +1,6 @@
 use crate::agent::Agent;
 use crate::environment_config::{EnvironmentConfig, Wealth};
+use crate::metrics::Metrics;
 use rand::seq::SliceRandom;
 use rand::Rng;
 use std::collections::HashMap;
@@ -90,6 +91,28 @@ impl Environment {
             config: config.clone(),
             iteration_total_transaction_amount: 0.0,
             iteration_total_transaction_count: 0,
+        }
+    }
+
+    pub fn run_simulation(&mut self, filepath: Option<&str>, logging_enabled: bool) {
+        let metrics = Metrics::new(filepath.unwrap_or("visualisation/metrics.csv"));
+        while self.iteration < self.config.num_iterations {
+            self.step();
+            if logging_enabled {
+                metrics.log(
+                    self.iteration,
+                    &self.agents,
+                    self.iteration_total_transaction_amount,
+                    self.iteration_total_transaction_count,
+                );
+            }
+
+            println!(
+                "Iteration: {}, Total Wealth: {:.2}, Transactions: {}",
+                self.iteration,
+                self.agents.iter().map(|a| a.wealth).sum::<f64>(),
+                self.iteration_total_transaction_count
+            );
         }
     }
 
